@@ -2,16 +2,17 @@
 
 set -e # to exit as soon as there is an error
 
-hollight_version=3.0.0 # for dependencies
-hollight_commit=72b2b70 # 3.0.0
-hol2dk_commit=15b042c
-lambdapi_commit=c1cb2edf
+#opam_version=2.2.1
+#dune_version=3.20.2
+#make_version=4.3
+
+hollight_version=3.1.0
+hollight_commit=Release-3.1.0
+hol2dk_commit=2.1.0
+lambdapi_commit=3.0.0
+camlp5_version=8.03.06
 ocaml_version=5.3.0
 rocq_version=9.0.0
-
-opam_version=2.3.0
-dune_version=3.20.2
-camlp5_version=8.03.06
 
 hollight_file=Logic/make.ml
 base=`basename $hollight_file .ml`
@@ -50,6 +51,12 @@ checkout_commit() {
     cd ..
 }
 
+#usage: install package_name version
+install() {
+    start install $1
+    opam install -y $1.$2
+}
+
 create_opam_switch() {
     start create opam switch
     opam switch create . $ocaml_version
@@ -57,7 +64,7 @@ create_opam_switch() {
 
 install_hollight_deps() {
     start install HOL-Light dependencies
-    opam install -y camlp5.$camlp5_version
+    opam pin -y camlp5 $camlp5_version
     opam install -y --deps-only hol_light.$hollight_version
 }
 
@@ -67,11 +74,6 @@ install_lambdapi() {
     git checkout -b reproduce
     opam install -y .
     cd ..
-}
-
-install_rocq() {
-    start install rocq
-    opam install -y rocq-prover.$rocq_version
 }
 
 install_deps() {
@@ -135,9 +137,9 @@ check_proofs() {
 
 remove_empty_modules() {
     sed -e "s/${base}_//g" \
-        -e "/^Require Import ${root_path}\.theory_hol\.$/d" \
-        -e "/^Require Import ${root_path}\.types\.$/d" \
-        -e "/^Require Import ${root_path}\.axioms\.$/d" \
+        -e "/^Require \(Im\|Ex\)port ${root_path}\.theory_hol\.$/d" \
+        -e "/^Require \(Im\|Ex\)port ${root_path}\.types\.$/d" \
+        -e "/^Require \(Im\|Ex\)port ${root_path}\.axioms\.$/d" \
         $1
 }
 
@@ -183,8 +185,9 @@ stage() {
     fi
     if test $i -eq $1
     then
-        $2
-        echo $1 > STAGE
+        shift
+        $*
+        echo $i > STAGE
     fi
 }
 
@@ -196,10 +199,10 @@ fi
 stage 1 create_opam_switch
 eval `opam env`
 stage 2 install_hollight_deps
-stage 3 install_lambdapi
-stage 4 install_rocq
+stage 3 install lambdapi $lambdapi_commit
+stage 4 install rocq-prover $rocq_version
 stage 5 install_deps
-stage 6 install_hol2dk
+stage 6 install hol2dk $hol2dk_commit
 stage 7 install_hollight
 stage 8 patch_hollight
 stage 9 dump_proofs
